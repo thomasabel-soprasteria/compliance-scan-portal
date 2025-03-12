@@ -11,6 +11,20 @@ db_url = str(settings.DATABASE_URL)
 if db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
+# Add explicit username and password if provided in settings
+if settings.DATABASE_USERNAME and settings.DATABASE_PASSWORD:
+    # Parse the existing URL to replace username and password
+    import re
+    pattern = r"postgresql\+asyncpg:\/\/([^:]+):([^@]+)@(.+)"
+    match = re.match(pattern, db_url)
+    if match:
+        # Replace username and password in the URL
+        db_url = f"postgresql+asyncpg://{settings.DATABASE_USERNAME}:{settings.DATABASE_PASSWORD}@{match.group(3)}"
+    else:
+        logger.warning("Could not parse DATABASE_URL to insert username and password")
+
+logger.info(f"Using database connection: {db_url.replace(settings.DATABASE_PASSWORD, '****') if settings.DATABASE_PASSWORD else db_url}")
+
 engine = create_async_engine(
     db_url,
     echo=settings.DEBUG,

@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
     API_PREFIX: str = os.getenv("API_PREFIX", "/api/v1")
     DATABASE_URL: PostgresDsn = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/compliance_db")
+    DATABASE_USERNAME: Optional[str] = os.getenv("DATABASE_USERNAME", None)
+    DATABASE_PASSWORD: Optional[str] = os.getenv("DATABASE_PASSWORD", None)
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     TEMP_UPLOAD_DIR: str = os.getenv("TEMP_UPLOAD_DIR", "./uploads")
     MAX_UPLOAD_SIZE: int = int(os.getenv("MAX_UPLOAD_SIZE", "20971520"))  # 20MB default
