@@ -1,5 +1,6 @@
 
-from pydantic import BaseSettings, PostgresDsn
+from pydantic_settings import BaseSettings
+from pydantic import PostgresDsn
 from typing import Optional
 import os
 from dotenv import load_dotenv
