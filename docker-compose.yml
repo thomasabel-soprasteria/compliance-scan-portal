@@ -40,7 +40,7 @@ services:
     command: -connectRetries=60 migrate
     volumes:
       - ./db/migrations:/flyway/sql
-      - ./db/flyway/flyway.conf:/flyway/conf/flyway.conf
+      - ./db/flyway:/flyway/conf
     environment:
       - FLYWAY_URL=jdbc:postgresql://db:5432/compliance_db
       - FLYWAY_USER=postgres
