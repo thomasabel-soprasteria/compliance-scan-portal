@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from app.api.routes import router as api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
-from app.db.session import create_db_and_tables
+from app.db.session import connect_to_mongo, close_mongo_connection, create_indexes
 
 # Load environment variables
 load_dotenv()
@@ -40,11 +40,13 @@ os.makedirs(settings.TEMP_UPLOAD_DIR, exist_ok=True)
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting up compliance scan API")
-    await create_db_and_tables()
+    await connect_to_mongo()
+    await create_indexes()
 
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down compliance scan API")
+    await close_mongo_connection()
 
 # Include API routes
 app.include_router(api_router, prefix=settings.API_PREFIX)

@@ -11,43 +11,24 @@ services:
       - ./uploads:/app/uploads
       - ./logs:/app/logs
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/compliance_db
-      - DATABASE_USERNAME=postgres
-      - DATABASE_PASSWORD=postgres
+      - MONGODB_URL=mongodb://mongo:27017/compliance_db
       - APP_NAME=Compliance Scan Portal
       - DEBUG=True
       - API_PREFIX=/api/v1
       - LOG_LEVEL=INFO
       - TEMP_UPLOAD_DIR=/app/uploads
     depends_on:
-      - db
+      - mongo
     restart: unless-stopped
 
-  db:
-    image: postgres:14-alpine
+  mongo:
+    image: mongo:6-jammy
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=compliance_db
+      - mongodb_data:/data/db
     ports:
-      - "5432:5432"
+      - "27017:27017"
     restart: unless-stopped
-
-  flyway:
-    image: flyway/flyway:9-alpine
-    command: -connectRetries=60 migrate
-    volumes:
-      - ./db/migrations:/flyway/sql
-      - ./db/flyway:/flyway/conf
-    environment:
-      - FLYWAY_URL=jdbc:postgresql://db:5432/compliance_db
-      - FLYWAY_USER=postgres
-      - FLYWAY_PASSWORD=postgres
-      - FLYWAY_SCHEMAS=public
-    depends_on:
-      - db
+    command: --quiet
 
 volumes:
-  postgres_data:
+  mongodb_data:

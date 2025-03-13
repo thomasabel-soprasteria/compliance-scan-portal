@@ -1,61 +1,54 @@
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from app.core.config import settings
+from motor.motor_asyncio import AsyncIOMotorClient
+from beanie import init_beanie
 from loguru import logger
-from sqlalchemy.ext.declarative import declarative_base
 
-# Create SQLAlchemy engine
-# Convert standard PostgreSQL URL to async version
-db_url = str(settings.DATABASE_URL)
-if db_url.startswith("postgresql://"):
-    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+from app.core.config import settings
+from app.models.regulatory_requirement import RegulatoryRequirement
+from app.models.report import Report
+from app.models.compliance_result import ComplianceResult
 
-# Add explicit username and password if provided in settings
-if settings.DATABASE_USERNAME and settings.DATABASE_PASSWORD:
-    # Parse the existing URL to replace username and password
-    import re
-    pattern = r"postgresql\+asyncpg:\/\/([^:]+):([^@]+)@(.+)"
-    match = re.match(pattern, db_url)
-    if match:
-        # Replace username and password in the URL
-        db_url = f"postgresql+asyncpg://{settings.DATABASE_USERNAME}:{settings.DATABASE_PASSWORD}@{match.group(3)}"
-    else:
-        logger.warning("Could not parse DATABASE_URL to insert username and password")
+# MongoDB client instance
+client = None
 
-logger.info(f"Using database connection: {db_url.replace(settings.DATABASE_PASSWORD, '****') if settings.DATABASE_PASSWORD else db_url}")
+async def get_db():
+    """Get MongoDB database instance."""
+    return client[settings.DB_NAME]
 
-engine = create_async_engine(
-    db_url,
-    echo=settings.DEBUG,
-    future=True,
-)
+async def connect_to_mongo():
+    """Connect to MongoDB."""
+    global client
+    try:
+        logger.info(f"Connecting to MongoDB at {settings.MONGODB_URL.split('@')[-1]}")
+        client = AsyncIOMotorClient(settings.MONGODB_URL)
+        await init_beanie(
+            database=client[settings.DB_NAME],
+            document_models=[
+                RegulatoryRequirement,
+                Report,
+                ComplianceResult
+            ]
+        )
+        logger.info("Successfully connected to MongoDB")
+    except Exception as e:
+        logger.error(f"Failed to connect to MongoDB: {e}")
+        raise
 
-# Create session factory
-async_session = sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+async def close_mongo_connection():
+    """Close MongoDB connection."""
+    global client
+    if client:
+        client.close()
+        logger.info("MongoDB connection closed")
 
-# Create declarative base
-Base = declarative_base()
-
-async def get_db() -> AsyncSession:
-    """Dependency for getting async DB session."""
-    async with async_session() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
-
-async def create_db_and_tables():
-    """Create database tables if they don't exist."""
-    async with engine.begin() as conn:
-        try:
-            # Only create tables that don't exist
-            await conn.run_sync(Base.metadata.create_all)
-            logger.info("Database tables created or already exist")
-        except Exception as e:
-            logger.error(f"Error creating database tables: {e}")
-            raise
+async def create_indexes():
+    """Create necessary indexes."""
+    try:
+        # Create indexes as needed
+        await RegulatoryRequirement.create_indexes()
+        await Report.create_indexes()
+        await ComplianceResult.create_indexes()
+        logger.info("MongoDB indexes created or already exist")
+    except Exception as e:
+        logger.error(f"Error creating MongoDB indexes: {e}")
+        raise

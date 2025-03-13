@@ -1,26 +1,37 @@
 
-from sqlalchemy import Column, Integer, Boolean, Float, Text, DateTime, ForeignKey, UniqueConstraint
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
-from app.db.session import Base
 from datetime import datetime
+from beanie import Document, Indexed, Link
+from pydantic import Field
+from typing import Optional
 
-class ComplianceResult(Base):
-    """Database model for compliance check results."""
-    __tablename__ = "compliance_results"
+from app.models.report import Report
+from app.models.regulatory_requirement import RegulatoryRequirement
+
+class ComplianceResult(Document):
+    """MongoDB document for compliance check results."""
+    report: Link[Report]
+    requirement: Link[RegulatoryRequirement]
+    is_compliant: Optional[bool] = None
+    confidence_score: Optional[float] = None
+    extracted_evidence: Optional[str] = None
+    analysis_date: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    id = Column(Integer, primary_key=True, index=True)
-    report_id = Column(Integer, ForeignKey("reports.id", ondelete="CASCADE"), nullable=False)
-    requirement_id = Column(Integer, ForeignKey("regulatory_requirements.id", ondelete="CASCADE"), nullable=False)
-    is_compliant = Column(Boolean)
-    confidence_score = Column(Float)
-    extracted_evidence = Column(Text)
-    analysis_date = Column(DateTime, default=datetime.utcnow, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
-    # Unique constraint to ensure one result per report-requirement pair
-    __table_args__ = (UniqueConstraint('report_id', 'requirement_id', name='uix_report_requirement'),)
-    
+    class Settings:
+        name = "compliance_results"
+        indexes = [
+            # Compound index to ensure one result per report-requirement pair
+            [
+                ("report.id", 1),
+                ("requirement.id", 1),
+            ],
+        ]
+        
     def __repr__(self):
-        return f"<ComplianceResult(id={self.id}, report_id={self.report_id}, requirement_id={self.requirement_id}, is_compliant={self.is_compliant})>"
+        return f"<ComplianceResult(id={self.id}, report_id={self.report.id}, requirement_id={self.requirement.id}, is_compliant={self.is_compliant})>"
+        
+    async def save_with_timestamp(self):
+        """Save with updated timestamp."""
+        self.updated_at = datetime.utcnow()
+        return await self.save()

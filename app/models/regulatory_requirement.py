@@ -1,20 +1,25 @@
 
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from app.db.session import Base
 from datetime import datetime
+from beanie import Document, Indexed
+from pydantic import Field
+from typing import Optional
 
-class RegulatoryRequirement(Base):
-    """Database model for regulatory requirements."""
-    __tablename__ = "regulatory_requirements"
+class RegulatoryRequirement(Document):
+    """MongoDB document for regulatory requirements."""
+    name: Indexed(str)
+    description: str
+    category: Optional[str] = None
+    active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=False)
-    category = Column(String(100))
-    active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
+    class Settings:
+        name = "regulatory_requirements"
+        
     def __repr__(self):
         return f"<RegulatoryRequirement(id={self.id}, name='{self.name}', active={self.active})>"
+        
+    async def save_with_timestamp(self):
+        """Save with updated timestamp."""
+        self.updated_at = datetime.utcnow()
+        return await self.save()
